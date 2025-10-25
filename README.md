@@ -1,0 +1,213 @@
+# Google Maps Review Scraper & ABSA Labeling
+
+Project untuk scraping review dari Google Maps dan melakukan Aspect-Based Sentiment Analysis (ABSA) labeling untuk data training.
+
+## 📋 Fitur
+
+1. **Web Scraping** - Scraping review dari Google Maps
+2. **Data Cleaning** - Membersihkan teks review (remove emoji, normalize text, dll)
+3. **Data Merging** - Menggabungkan multiple CSV files
+4. **Auto Labeling** - Labeling otomatis dengan keyword-based approach
+5. **Manual Review** - Interface untuk review dan koreksi label
+6. **Dataset Analysis** - Analisis kelayakan dataset untuk training
+
+## 🚀 Quick Start
+
+### 1. Install Dependencies
+
+**Full Installation** (termasuk BERT & web scraping):
+```bash
+pip install -r requirements.txt
+```
+
+**Minimal Installation** (hanya untuk cleaning & labeling):
+```bash
+pip install -r requirements-minimal.txt
+```
+
+### 2. Workflow
+
+#### A. Scraping Reviews (Optional)
+```bash
+python scrapping.py
+```
+Output: `dataset/reviews_[nama_tempat]_[timestamp].csv`
+
+#### B. Cleaning Reviews
+```bash
+python cleaning.py
+```
+- Menghilangkan emoji, newline, tab
+- Normalize ke lowercase
+- Remove special characters
+- Output: `data_clean/reviews_cleaned.csv`
+
+#### C. Merge Multiple Files
+```bash
+python merge_data.py
+```
+- Merge semua CSV di folder `data_clean`
+- Remove duplicates
+- Output: `data_clean/all_reviews_merged.csv`
+
+#### D. Analyze Dataset
+```bash
+python analyze_dataset.py
+```
+- Analisis panjang review
+- Estimasi token count untuk BERT
+- Statistik distribusi
+- Output: `data_training/dataset_analysis.csv`
+
+#### E. Label Dataset
+```bash
+python make_labels.py
+```
+Mode:
+1. **Auto-label semua data** - Keyword-based labeling
+2. **Auto-label sample** - Label sejumlah sample tertentu
+3. **Manual review** - Review dan edit label interaktif
+
+Output: `data_training/labeled_reviews.csv`
+
+## 📁 Struktur Project
+
+```
+gmaps-scraper/
+├── scrapping.py              # Web scraping script
+├── cleaning.py               # Data cleaning functions
+├── merge_data.py             # Merge multiple CSV files
+├── analyze_dataset.py        # Dataset analysis
+├── make_labels.py            # ABSA labeling tool
+├── requirements.txt          # Full dependencies
+├── requirements-minimal.txt  # Minimal dependencies
+├── README.md                 # This file
+├── README_LABELING.md        # Detailed labeling guide
+│
+├── dataset/                  # Raw scraped data
+│   └── reviews_*.csv
+│
+├── data_clean/              # Cleaned data
+│   ├── reviews_*.csv
+│   └── all_reviews_merged.csv
+│
+└── data_training/           # Labeled training data
+    ├── labeled_reviews.csv
+    └── dataset_analysis.csv
+```
+
+## 🏷️ Aspect-Based Sentiment Analysis (ABSA)
+
+Dataset dilabeli untuk 5 aspek dengan 3 sentimen (positive/negative/neutral):
+
+### Aspek:
+1. **food_quality** - Kualitas makanan (rasa, tekstur, kesegaran)
+2. **price** - Harga (keterjangkauan, value for money)
+3. **service** - Pelayanan (keramahan, kecepatan staff)
+4. **ambiance** - Suasana (kenyamanan, kebersihan tempat)
+5. **portion** - Porsi (ukuran, kecukupan makanan)
+
+### Format Output:
+```csv
+sentence,username,food_quality,price,service,ambiance,portion
+"bakso enak, harga murah",User1,positive,positive,neutral,neutral,neutral
+```
+
+## 📊 Dataset Statistics
+
+Berdasarkan analisis terakhir:
+- **Total reviews**: 1,874
+- **Panjang rata-rata**: 127 karakter / 20 kata
+- **Max length**: 1,852 karakter / 296 kata
+- **Token estimate**: Max 414 tokens (< 512 BERT limit) ✓
+- **Status**: COCOK untuk training BERT
+
+## 🔧 Scripts Detail
+
+### cleaning.py
+```python
+from cleaning import clean_review_text, clean_csv_file
+
+# Clean single text
+clean_text = clean_review_text("Review dengan emoji 😅")
+
+# Clean entire CSV
+clean_csv_file("input.csv", "output.csv")
+```
+
+### merge_data.py
+```python
+from merge_data import merge_cleaned_reviews
+
+# Merge all CSV in folder
+df = merge_cleaned_reviews(
+    input_folder="data_clean",
+    output_file="data_clean/merged.csv",
+    columns_to_keep=['username', 'review']
+)
+```
+
+### make_labels.py
+```python
+from make_labels import create_training_data
+
+# Auto-label dataset
+labeled_df = create_training_data(
+    input_file="data_clean/all_reviews_merged.csv",
+    output_file="data_training/labeled.csv",
+    sample_size=None  # None = all data
+)
+```
+
+## 🎯 Next Steps - Model Training
+
+Setelah data dilabeli:
+
+1. **Split Dataset**
+   ```python
+   from sklearn.model_selection import train_test_split
+   
+   train, temp = train_test_split(df, test_size=0.3, random_state=42)
+   val, test = train_test_split(temp, test_size=0.5, random_state=42)
+   ```
+
+2. **Fine-tune BERT**
+   - Model: `indobenchmark/indobert-base-p2`
+   - Task: Multi-label classification (5 aspects × 3 classes)
+   - Framework: Hugging Face Transformers
+
+3. **Evaluate**
+   - Accuracy per aspect
+   - F1-score (macro/micro)
+   - Confusion matrix
+
+4. **Deploy**
+   - Save model
+   - Create inference API
+   - Integrate to production
+
+## 📝 Notes
+
+- **Keyword-based labeling** akurasi ~70-80%, disarankan manual review minimal 10% data
+- **BERT max tokens**: 512 tokens, semua review dalam dataset < 512 tokens ✓
+- **Recommended training size**: Minimal 500-1000 labeled reviews
+- **Current dataset**: 1,874 reviews (CUKUP untuk training)
+
+## 🤝 Contributing
+
+Untuk menambah keywords atau improve labeling:
+1. Edit `make_labels.py` → `aspect_keywords` dictionary
+2. Re-run labeling
+3. Review hasil
+
+## 📄 License
+
+MIT License
+
+## 👤 Author
+
+Your Name / Team Name
+
+---
+
+**Happy Labeling! 🚀**

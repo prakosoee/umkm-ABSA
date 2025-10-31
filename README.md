@@ -27,7 +27,41 @@ pip install -r requirements-minimal.txt
 
 ### 2. Workflow
 
-#### A. Scraping Reviews (Optional)
+#### A. Orchestrator: Places + Reviews (Recommended)
+
+Gunakan `main.py` untuk menjalankan dua tahap otomatis: ambil daftar tempat (links) lalu scrape reviews per link.
+
+```bash
+python main.py \
+  --query "geprek kak rose malang" \
+  --max-tempat 30 \
+  --max-review-per-tempat 200 \
+  --output-dir "geprek_kak_rose_run1" \
+  [--headless] \
+  [--delay 2.0] \
+  [--places-output "dataset/geprek_kak_rose_run1/places_custom.csv"]
+```
+
+Argumen:
+- `--query` (wajib): kata kunci pencarian di Google Maps.
+- `--max-tempat` (default 50): jumlah tempat maksimum yang diambil dari hasil pencarian.
+- `--max-review-per-tempat` (opsional): batas jumlah review per tempat saat scraping ulasan.
+- `--output-dir` (wajib): nama folder tujuan di bawah `dataset/` untuk menyimpan hasil run ini.
+- `--headless` (opsional): jalankan Chrome tanpa UI.
+- `--delay` (default 2.0): jeda antar scraping link saat mengambil review.
+- `--places-output` (opsional): path file CSV untuk daftar tempat; jika tidak diisi, otomatis `dataset/<output-dir>/places.csv`.
+
+Struktur output contoh:
+```
+dataset/
+└── geprek_kak_rose_run1/
+    ├── places.csv                  # daftar tempat (name, link, lat, lng, ...)
+    ├── reviews_Geprek_Kak_Rose_....csv
+    ├── reviews_Geprek_Kak_Rose_....csv
+    └── ... (satu file per link yang memiliki review)
+```
+
+#### B. Scraping Reviews (Optional)
 ```bash
 python scrapping.py
 ```

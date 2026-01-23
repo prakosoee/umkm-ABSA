@@ -55,3 +55,6 @@ tmp/
 credentials.json
 config.ini
 secrets.py
+
+readme_finetune.md 
+catatan.txt

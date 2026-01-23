@@ -181,59 +181,6 @@ df = merge_cleaned_reviews(
 )
 ```
 
-### make_labels.py
-```python
-from make_labels import create_training_data
-
-# Auto-label dataset
-labeled_df = create_training_data(
-    input_file="data_clean/all_reviews_merged.csv",
-    output_file="data_training/labeled.csv",
-    sample_size=None  # None = all data
-)
-```
-
-## 🎯 Next Steps - Model Training
-
-Setelah data dilabeli:
-
-1. **Split Dataset**
-   ```python
-   from sklearn.model_selection import train_test_split
-   
-   train, temp = train_test_split(df, test_size=0.3, random_state=42)
-   val, test = train_test_split(temp, test_size=0.5, random_state=42)
-   ```
-
-2. **Fine-tune BERT**
-   - Model: `indobenchmark/indobert-base-p2`
-   - Task: Multi-label classification (5 aspects × 3 classes)
-   - Framework: Hugging Face Transformers
-
-3. **Evaluate**
-   - Accuracy per aspect
-   - F1-score (macro/micro)
-   - Confusion matrix
-
-4. **Deploy**
-   - Save model
-   - Create inference API
-   - Integrate to production
-
-## 📝 Notes
-
-- **Keyword-based labeling** akurasi ~70-80%, disarankan manual review minimal 10% data
-- **BERT max tokens**: 512 tokens, semua review dalam dataset < 512 tokens ✓
-- **Recommended training size**: Minimal 500-1000 labeled reviews
-- **Current dataset**: 1,874 reviews (CUKUP untuk training)
-
-## 🤝 Contributing
-
-Untuk menambah keywords atau improve labeling:
-1. Edit `make_labels.py` → `aspect_keywords` dictionary
-2. Re-run labeling
-3. Review hasil
-
 ## 📄 License
 
 MIT License

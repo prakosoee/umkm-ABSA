@@ -1,14 +1,13 @@
 selenium
 beautifulsoup4
 requests
-transformers
-torch
-tokenizers
+# transformers
+# torch
+# tokenizers
 tqdm
 scikit-learn
 pandas
 google_play_scraper
-time
 nltk
 numpy
 matplotlib

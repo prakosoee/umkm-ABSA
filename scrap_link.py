@@ -5,6 +5,8 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
 import time
 import re
 import pandas as pd
@@ -31,20 +33,90 @@ class GoogleMapsSearchScraper:
         options.add_experimental_option("useAutomationExtension", False)
         if self.headless:
             options.add_argument("--headless=new")
-        self.driver = webdriver.Chrome(options=options)
+        self.driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
         self.driver.maximize_window()
         try:
             self.driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
         except Exception:
             pass
 
+    def _dismiss_consent(self):
+        """Dismiss Google cookie consent popup if present."""
+        try:
+            consent_selectors = [
+                "form[action='https://consent.google.com/save'] button",
+                "button[aria-label='Accept all']",
+                "button[aria-label='Terima semua']",
+                "button[aria-label='Setuju']",
+                "[aria-label='Accept all']",
+            ]
+            for sel in consent_selectors:
+                try:
+                    btn = self.driver.find_element(By.CSS_SELECTOR, sel)
+                    if btn.is_displayed():
+                        btn.click()
+                        print("✓ Cookie consent popup dismissed")
+                        time.sleep(1)
+                        return True
+                except Exception:
+                    continue
+        except Exception:
+            pass
+        return False
+
+    def _find_search_input(self, wait):
+        """Try multiple selectors to find the Maps search input."""
+        selectors = [
+            (By.CSS_SELECTOR, "input.searchboxinput"),
+            (By.CSS_SELECTOR, "input#searchboxinput"),
+            (By.CSS_SELECTOR, "input[aria-label='Search Google Maps']"),
+            (By.CSS_SELECTOR, "input[aria-label='Telusuri Google Maps']"),
+            (By.CSS_SELECTOR, "input[aria-label='Cari Google Maps']"),
+            (By.CSS_SELECTOR, "input[id*='searchbox']"),
+            (By.CSS_SELECTOR, "input[name='q']"),
+            (By.XPATH, "//input[contains(@class, 'tactile-searchbox-input')]"),
+            (By.XPATH, "//input[contains(@class, 'searchbox')]"),
+        ]
+        # Use a shorter timeout per selector so we cycle through all quickly
+        short_wait = WebDriverWait(self.driver, 3)
+        for by, selector in selectors:
+            try:
+                el = short_wait.until(EC.presence_of_element_located((by, selector)))
+                if el:
+                    print(f"✓ Search input ditemukan: {selector}")
+                    return el
+            except TimeoutException:
+                continue
+        raise TimeoutException(f"Tidak dapat menemukan search input dengan semua selector yang dicoba")
+
     def open_and_search(self):
         print("⟳ Membuka Google Maps dan melakukan pencarian...")
+
+        # Inject consent cookie to bypass popup
+        self.driver.get("https://www.google.com")
+        self.driver.add_cookie({
+            "name": "CONSENT",
+            "value": "YES+cb.20260601-01-p0.en+FX+999",
+            "domain": ".google.com"
+        })
+        # Also set SOCS cookie which is used in some regions
+        try:
+            self.driver.add_cookie({
+                "name": "SOCS",
+                "value": "CAISHAgBEhJnd3NfMjAyNjA2MTMtMF9SQzIaAmVuIAEaBgiA_vyxBg",
+                "domain": ".google.com"
+            })
+        except Exception:
+            pass
+
         self.driver.get("https://www.google.com/maps")
+        time.sleep(2)
+
+        # Try to dismiss consent popup if it still appears
+        self._dismiss_consent()
+
         wait = WebDriverWait(self.driver, 20)
-        search_input = wait.until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "input.searchboxinput"))
-        )
+        search_input = self._find_search_input(wait)
         search_input.clear()
         search_input.send_keys(self.query)
         search_input.send_keys(Keys.ENTER)

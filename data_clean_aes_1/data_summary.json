@@ -1,0 +1,20 @@
+{
+  "total_samples": 580,
+  "train_samples": 348,
+  "val_samples": 116,
+  "test_samples": 116,
+  "mata_pelajaran_distribution": {
+    "train": {
+      "bahasa indonesia": 180,
+      "pendidikan agama islam": 168
+    },
+    "val": {
+      "bahasa indonesia": 60,
+      "pendidikan agama islam": 56
+    },
+    "test": {
+      "bahasa indonesia": 60,
+      "pendidikan agama islam": 56
+    }
+  }
+}

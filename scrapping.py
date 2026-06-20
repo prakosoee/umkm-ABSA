@@ -5,6 +5,8 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
 import time
 import pandas as pd
 from datetime import datetime
@@ -26,7 +28,7 @@ class GoogleMapsReviewScraper:
         options.add_experimental_option("excludeSwitches", ["enable-automation"])
         options.add_experimental_option('useAutomationExtension', False)
         
-        self.driver = webdriver.Chrome(options=options)
+        self.driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
         self.driver.maximize_window()
         self.driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
         print("Browser berhasil diinisialisasi")
@@ -61,29 +63,39 @@ class GoogleMapsReviewScraper:
             return False
     
     def click_more_reviews_button(self):
-        """Klik tombol 'Ulasan lainnya' untuk membuka panel review lengkap"""
-        try:
-            wait = WebDriverWait(self.driver, 10)
-            more_button = wait.until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, "button.M77dve[aria-label*='Ulasan lainnya']"))
-            )
-            more_button.click()
-            time.sleep(3)
-            print("Berhasil klik tombol 'Ulasan lainnya'")
-            
-            # Langsung scroll panel ulasan agar konten muncul
+        """Klik tombol 'Ulasan lainnya' atau sejenisnya untuk membuka panel review lengkap"""
+        # Coba multiple selector
+        selectors = [
+            "button.M77dve[aria-label*='Ulasan lainnya']",
+            "button.M77dve[aria-label*='ulasan']",
+            "button.M77dve[aria-label*='review']",
+            "button.M77dve[aria-label*='Review']",
+            "button:has(span:contains('Ulasan'))",
+            "button[aria-label*='Ulasan']",
+            "button[aria-label*='ulasan']",
+            "button[aria-label*='review']",
+        ]
+        for sel in selectors:
             try:
-                panel = self.get_scrollable_element()
-                if panel:
-                    self.driver.execute_script("arguments[0].scrollBy(0, 1000);", panel)
-                    time.sleep(1)
+                btn = WebDriverWait(self.driver, 3).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, sel))
+                )
+                if btn:
+                    btn.click()
+                    time.sleep(3)
+                    print(f"✓ Berhasil klik tombol review: {sel}")
+                    try:
+                        panel = self.get_scrollable_element()
+                        if panel:
+                            self.driver.execute_script("arguments[0].scrollBy(0, 1000);", panel)
+                            time.sleep(1)
+                    except Exception:
+                        pass
+                    return True
             except Exception:
-                pass
-            print("Panel review lengkap berhasil dimuat")
-            return True
-        except Exception as e:
-            print(f"Gagal klik tombol 'Ulasan lainnya': {e}")
-            return False
+                continue
+        print("⚠ Tidak ada tombol review terpisah — mungkin panel review sudah terlihat langsung")
+        return False
     
     def expand_review_text(self, review_container):
         """Klik tombol 'Lainnya' untuk melihat teks review lengkap"""
@@ -153,12 +165,14 @@ class GoogleMapsReviewScraper:
     def get_scrollable_element(self):
         """Dapatkan elemen yang bisa di-scroll"""
         selectors = [
-            "div.m6QErb.DxyBCb.dS8AEf.XiKgde",  # Panel review utama (tanpa kA9KIf)
-            "div.m6QErb.DxyBCb.kA9KIf.dS8AEf.XiKgde",  # Variasi dengan kA9KIf
+            "div.m6QErb.DxyBCb.dS8AEf.XiKgde",
+            "div.m6QErb.DxyBCb.kA9KIf.dS8AEf.XiKgde",
+            "div.m6QErb.XiKgde.P9tVlf.dS8AEf",
             "div.m6QErb.DxyBCb.dS8AEf",
-            "div.m6QErb.DxyBCb"
+            "div.m6QErb.DxyBCb",
+            "div.m6QErb.XiKgde",
         ]
-        
+
         for selector in selectors:
             try:
                 element = self.driver.find_element(By.CSS_SELECTOR, selector)
@@ -236,22 +250,24 @@ class GoogleMapsReviewScraper:
     
     def wait_for_reviews_to_load(self):
         """Tunggu sampai review containers muncul"""
+        selectors = ["div.jftiEf", "div.JTuXWc", "div[data-review-id]", "div[role='article']"]
         max_wait = 15
         wait_interval = 0.5
         elapsed = 0
-        
+
         while elapsed < max_wait:
-            try:
-                containers = self.driver.find_elements(By.CSS_SELECTOR, "div.jftiEf")
-                if len(containers) > 0:
-                    print(f"✓ Ditemukan {len(containers)} review containers")
-                    return containers
-            except Exception:
-                pass
-            
+            for sel in selectors:
+                try:
+                    containers = self.driver.find_elements(By.CSS_SELECTOR, sel)
+                    if len(containers) > 0:
+                        print(f"✓ Ditemukan {len(containers)} review containers dengan selector: {sel}")
+                        return containers
+                except Exception:
+                    pass
+
             time.sleep(wait_interval)
             elapsed += wait_interval
-        
+
         return []
     
     def scrape_reviews(self):
@@ -273,10 +289,8 @@ class GoogleMapsReviewScraper:
                 print("✗ Gagal menemukan section reviews")
                 return []
             
-            # Klik tombol "Ulasan lainnya"
-            if not self.click_more_reviews_button():
-                print("✗ Gagal membuka panel reviews lengkap")
-                return []
+            # Klik tombol "Ulasan lainnya" — skip jika tidak ada
+            self.click_more_reviews_button()
             
             print(f"\n⟳ Mulai scraping reviews (Target: {self.max_reviews if self.max_reviews else 'Semua'})")
             
@@ -301,8 +315,16 @@ class GoogleMapsReviewScraper:
             max_stagnant = 8
             max_attempts = 300
 
+            # Cari review container dengan beberapa selector
+            def find_review_containers():
+                for sel in ["div.jftiEf", "div.JTuXWc", "div[data-review-id]", "div[role='article']"]:
+                    els = self.driver.find_elements(By.CSS_SELECTOR, sel)
+                    if els:
+                        return els
+                return []
+
             while True:
-                containers = self.driver.find_elements(By.CSS_SELECTOR, "div.jftiEf")
+                containers = find_review_containers()
                 current_count = len(containers)
 
                 if current_count > seen_count:
@@ -340,7 +362,7 @@ class GoogleMapsReviewScraper:
 
             # EXTRACT SEKALI DI AKHIR
             print("\n⟳ Mulai extract data sekali jalan...")
-            final_containers = self.driver.find_elements(By.CSS_SELECTOR, "div.jftiEf")
+            final_containers = find_review_containers()
             extracted = 0
             for container in final_containers:
                 if self.max_reviews and len(self.reviews) >= self.max_reviews:
@@ -452,24 +474,12 @@ def scrape_batch_from_links(csv_file, max_reviews=None, delay_between=2, output_
 
 # ===== CARA PENGGUNAAN =====
 if __name__ == "__main__":
-    # # URL Google Maps
-    # gmaps_url = "https://www.google.com/maps/place/Mie+Gacoan+Malang+-+Singosari/data=!4m7!3m6!1s0x2dd62b7894907899:0xb702cbaf429d0c2a!8m2!3d-7.9001902!4d112.6627503!16s%2Fg%2F11t_k3p1bf!19sChIJmXiQlHgr1i0RKgydQq_LArc?authuser=0&hl=id&rclk=1"
-    
-    # # Inisialisasi scraper
-    # scraper = GoogleMapsReviewScraper(
-    #     url=gmaps_url,
-    #     max_reviews=500
-    # )
-    
-    # # Jalankan scraping
-    # reviews = scraper.scrape_reviews()
-    
-    # # Simpan hasil
-    # if reviews:
-    #     scraper.save_to_csv()
-    # else:
-    #     print("✗ Tidak ada review yang berhasil diambil")
+    gmaps_url = "https://maps.app.goo.gl/TjQhU4PwAUzQZ2xN8"
 
-    # Jalankan batch scraping dari file daftar link (output dari scrap_link.py)
-    csv_input = "dataset/places_bakso_sayur_ub_20251027_232244.csv"
-    scrape_batch_from_links(csv_input, max_reviews=500, delay_between=2)
+    scraper = GoogleMapsReviewScraper(url=gmaps_url, max_reviews=500)
+    reviews = scraper.scrape_reviews()
+
+    if reviews:
+        scraper.save_to_csv()
+    else:
+        print("✗ Tidak ada review yang berhasil diambil")

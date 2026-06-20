@@ -1,0 +1,29 @@
+{
+  "total_samples": 1460,
+  "train_samples": 949,
+  "val_samples": 194,
+  "test_samples": 174,
+  "mata_pelajaran_distribution": {
+    "train": {
+      "pendidikan pancasila": 236,
+      "ipas": 205,
+      "seni": 196,
+      "bahasa indonesia": 171,
+      "pendidikan agama islam": 141
+    },
+    "val": {
+      "pendidikan agama islam": 64,
+      "bahasa indonesia": 48,
+      "seni": 44,
+      "ipas": 26,
+      "pendidikan pancasila": 12
+    },
+    "test": {
+      "pendidikan agama islam": 63,
+      "bahasa indonesia": 45,
+      "seni": 38,
+      "ipas": 20,
+      "pendidikan pancasila": 8
+    }
+  }
+}
